@@ -8,9 +8,9 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-oncha
 - [Tailwind CSS](https://tailwindcss.com)
 - [Next.js](https://nextjs.org/docs)
 
-## Civic Auth Integration
+## Civic Auth Web3 Integration
 
-This template has been enhanced to use Civic Auth instead of traditional wallet connection. Users can now sign in with their Civic identity, which provides a seamless authentication experience without requiring users to connect their wallets directly.
+This template has been enhanced to use Civic Auth Web3 instead of traditional wallet connection. Users can now sign in with their Civic identity and access Web3 capabilities, providing a seamless authentication experience with embedded wallet functionality.
 
 ## Getting Started
 
@@ -86,11 +86,12 @@ npm run dev
 - Pixel font integration with Pixelify Sans
 - Dark/light mode support through OnchainKit
 
-### Civic Auth Provider
-The app is wrapped with `CivicAuthProvider` in `providers.tsx`, which provides:
+### Civic Auth Web3 Provider
+The app is wrapped with `CivicAuthProvider` from `@civic/auth-web3/react` in `providers.tsx`, which provides:
 - User authentication and identity management
 - Seamless sign-in/sign-out functionality
 - User profile information access
+- Web3 capabilities and embedded wallet functionality
 - Integration with Civic's identity infrastructure
 
 ### MiniKit Provider
@@ -120,12 +121,14 @@ To get started building your own frame, follow these steps:
 
 ## Key Changes Made
 
-This template has been modified to integrate Civic Auth:
+This template has been modified to integrate Civic Auth Web3:
 
-1. **Replaced Wallet Connection**: The traditional `ConnectWallet` button has been replaced with Civic Auth's `UserButton`
-2. **Updated User Context**: Components now use `useUser()` from Civic Auth instead of `useAccount()` from wagmi
-3. **Provider Setup**: Added `CivicAuthProvider` wrapper around the existing `MiniKitProvider`
-4. **Transaction Logic**: Updated transaction components to work with Civic Auth user context
+1. **Replaced Wallet Connection**: The traditional `ConnectWallet` button has been replaced with Civic Auth Web3's `UserButton`
+2. **Updated User Context**: Components now use `useUser()` from `@civic/auth-web3/react` instead of `useAccount()` from wagmi
+3. **Provider Setup**: Added `CivicAuthProvider` from `@civic/auth-web3/react` wrapper around the existing `MiniKitProvider`
+4. **Web3 Integration**: Added `initialChain={base}` configuration for Web3 capabilities
+5. **Transaction Logic**: Updated transaction components to work with Civic Auth Web3 user context
+6. **Dependencies**: Installed `@civic/auth-web3` and `@solana/wallet-adapter-react` for full Web3 support
 
 ## Learn More
 

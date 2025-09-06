@@ -1,21 +1,9 @@
 "use client";
 
-import { type ReactNode, useCallback, useMemo, useState } from "react";
-import { useUser } from "@civic/auth/react";
-import {
-  Transaction,
-  TransactionButton,
-  TransactionToast,
-  TransactionToastAction,
-  TransactionToastIcon,
-  TransactionToastLabel,
-  TransactionError,
-  TransactionResponse,
-  TransactionStatusAction,
-  TransactionStatusLabel,
-  TransactionStatus,
-} from "@coinbase/onchainkit/transaction";
+import { type ReactNode, useCallback, useState } from "react";
+import { useUser } from "@civic/auth-web3/react";
 import { useNotification } from "@coinbase/onchainkit/minikit";
+import { useSignMessage, useAccount, useConnect } from "wagmi";
 
 type ButtonProps = {
   children: ReactNode;
@@ -389,72 +377,165 @@ function TodoList() {
 
 function TransactionCard() {
   const { user } = useUser();
-
-  // Example transaction call - sending 0 ETH to self
-  // Note: For Civic Auth, we'll use a placeholder address since we don't have direct wallet access
-  const calls = useMemo(() => user
-    ? [
-        {
-          to: "0x0000000000000000000000000000000000000000" as `0x${string}`,
-          data: "0x" as `0x${string}`,
-          value: BigInt(0),
-        },
-      ]
-    : [], [user]);
-
+  const { address, isConnected } = useAccount();
+  const { signMessageAsync, isPending } = useSignMessage();
+  const { connect, connectors, isPending: isConnecting } = useConnect();
+  const [lastSignature, setLastSignature] = useState<string | null>(null);
   const sendNotification = useNotification();
 
-  const handleSuccess = useCallback(async (response: TransactionResponse) => {
-    const transactionHash = response.transactionReceipts[0].transactionHash;
+  // Get the embedded wallet connector
+  const embeddedWalletConnector = connectors.find(connector => 
+    connector.name.toLowerCase().includes('embedded') || 
+    connector.name.toLowerCase().includes('civic')
+  );
 
-    console.log(`Transaction successful: ${transactionHash}`);
+  const handleConnectWallet = useCallback(async () => {
+    if (!embeddedWalletConnector) {
+      console.error("Embedded wallet connector not found");
+      await sendNotification({
+        title: "Wallet Error",
+        body: "Embedded wallet connector not available.",
+      });
+      return;
+    }
 
-    await sendNotification({
-      title: "Congratulations!",
-      body: `You sent your a transaction, ${transactionHash}!`,
-    });
-  }, [sendNotification]);
+    try {
+      await connect({ connector: embeddedWalletConnector });
+      await sendNotification({
+        title: "Wallet Connected! 🎉",
+        body: "Embedded wallet connected successfully.",
+      });
+    } catch (error) {
+      console.error("Error connecting wallet:", error);
+      await sendNotification({
+        title: "Connection Failed",
+        body: "Failed to connect wallet. Please try again.",
+      });
+    }
+  }, [embeddedWalletConnector, connect, sendNotification]);
+
+  const handleSignTransaction = useCallback(async () => {
+    if (!user) {
+      console.error("User not authenticated");
+      return;
+    }
+
+    if (!isConnected || !address) {
+      console.error("Wallet not connected");
+      await sendNotification({
+        title: "Wallet Not Connected",
+        body: "Please connect your wallet to sign transactions.",
+      });
+      return;
+    }
+    
+    try {
+      // Create a simple message to sign
+      const message = `Hello from ${user.name || user.email || 'Civic Auth User'}! This is a test message signed on ${new Date().toISOString()}`;
+      
+      // Use wagmi's signMessageAsync to sign the message
+      const signature = await signMessageAsync({ message });
+      setLastSignature(signature);
+      
+      console.log("Message signed:", message);
+      console.log("Signature:", signature);
+      console.log("Address:", address);
+      
+      await sendNotification({
+        title: "Transaction Signed! 🎉",
+        body: `Successfully signed message with wallet ${address.slice(0, 6)}...${address.slice(-4)}`,
+      });
+      
+    } catch (error) {
+      console.error("Error signing transaction:", error);
+      await sendNotification({
+        title: "Signing Failed",
+        body: "Failed to sign the transaction. Please try again.",
+      });
+    }
+  }, [user, isConnected, address, signMessageAsync, sendNotification]);
 
   return (
-    <Card title="Make Your First Transaction">
+    <Card title="Sign EVM Transaction">
       <div className="space-y-4">
         <p className="text-[var(--app-foreground-muted)] mb-4">
-          Experience the power of seamless sponsored transactions with{" "}
-          <a
-            href="https://onchainkit.xyz"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[#0052FF] hover:underline"
-          >
-            OnchainKit
-          </a>
-          .
+          Experience the power of Civic Auth Web3 by signing a message. This demonstrates 
+          EVM transaction signing capabilities with your Civic identity.
         </p>
 
-        <div className="flex flex-col items-center">
+        <div className="flex flex-col items-center space-y-4">
           {user ? (
-            <Transaction
-              calls={calls}
-              onSuccess={handleSuccess}
-              onError={(error: TransactionError) =>
-                console.error("Transaction failed:", error)
-              }
-            >
-              <TransactionButton className="text-white text-md" />
-              <TransactionStatus>
-                <TransactionStatusAction />
-                <TransactionStatusLabel />
-              </TransactionStatus>
-              <TransactionToast className="mb-4">
-                <TransactionToastIcon />
-                <TransactionToastLabel />
-                <TransactionToastAction />
-              </TransactionToast>
-            </Transaction>
+            <>
+              <div className="text-center">
+                <p className="text-[var(--app-foreground-muted)] text-sm mb-2">
+                  Signed in as: <span className="font-medium">{user.name || user.email}</span>
+                </p>
+                {user.id && (
+                  <p className="text-[var(--app-foreground-muted)] text-xs mb-2">
+                    User ID: {user.id}
+                  </p>
+                )}
+                {isConnected && address && (
+                  <p className="text-[var(--app-foreground-muted)] text-xs">
+                    Wallet: {address.slice(0, 6)}...{address.slice(-4)}
+                  </p>
+                )}
+              </div>
+              
+              {!isConnected ? (
+                <Button
+                  variant="primary"
+                  size="lg"
+                  onClick={handleConnectWallet}
+                  disabled={isConnecting || !embeddedWalletConnector}
+                  className="min-w-[200px]"
+                >
+                  {isConnecting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Connecting...
+                    </>
+                  ) : (
+                    "Connect Embedded Wallet"
+                  )}
+                </Button>
+              ) : (
+                <Button
+                  variant="primary"
+                  size="lg"
+                  onClick={handleSignTransaction}
+                  disabled={isPending}
+                  className="min-w-[200px]"
+                >
+                  {isPending ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Signing...
+                    </>
+                  ) : (
+                    "Sign Message"
+                  )}
+                </Button>
+              )}
+              
+              {lastSignature && (
+                <div className="mt-4 p-3 bg-[var(--app-card-bg)] rounded-lg border border-[var(--app-card-border)] max-w-full">
+                  <p className="text-[var(--app-foreground-muted)] text-xs mb-1">Last Signature:</p>
+                  <p className="text-[var(--app-foreground)] text-xs font-mono break-all">
+                    {lastSignature}
+                  </p>
+                </div>
+              )}
+            </>
           ) : (
-            <p className="text-yellow-400 text-sm text-center mt-2">
-              Sign in with Civic Auth to send a transaction
-            </p>
+            <div className="text-center">
+              <p className="text-yellow-400 text-sm mb-2">
+                Sign in with Civic Auth to sign transactions
+              </p>
+              <p className="text-[var(--app-foreground-muted)] text-xs">
+                Click the UserButton in the header to get started
+              </p>
+            </div>
           )}
         </div>
       </div>

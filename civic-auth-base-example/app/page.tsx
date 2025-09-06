@@ -5,7 +5,7 @@ import {
   useAddFrame,
   useOpenUrl,
 } from "@coinbase/onchainkit/minikit";
-import { UserButton } from "@civic/auth/react";
+import { UserButton } from "@civic/auth-web3/react";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { Button } from "./components/DemoComponents";
 import { Icon } from "./components/DemoComponents";
